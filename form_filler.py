@@ -10,13 +10,16 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import (
-    TimeoutException, NoSuchElementException, ElementNotInteractableException
+    TimeoutException,
+    NoSuchElementException,
+    ElementNotInteractableException,
 )
 import form_selectors as sel
 
 
 class FormFillerError(Exception):
     """Raised when a field cannot be filled — terminates the process."""
+
     pass
 
 
@@ -93,7 +96,9 @@ class FormFiller:
         """Fill fields in Excel column order: A through R."""
 
         # A: Product Type
-        self._select_dropdown(sel.PRODUCT_TYPE, data.get("Product Type"), "Product Type")
+        self._select_dropdown(
+            sel.PRODUCT_TYPE, data.get("Product Type"), "Product Type"
+        )
 
         # B: Brand
         self._select_dropdown(sel.BRAND, data.get("Brand"), "Brand")
@@ -109,20 +114,30 @@ class FormFiller:
 
         # F: Configuration
         if data.get("Configuration"):
-            self._select_dropdown(sel.CONFIGURATION, data["Configuration"], "Configuration")
+            self._select_dropdown(
+                sel.CONFIGURATION, data["Configuration"], "Configuration"
+            )
 
         # G: Max External PSF (optional)
         if data.get("Max External PSF"):
-            self._fill_input(sel.MAX_EXT_PSF, data["Max External PSF"], "Max External PSF")
+            self._fill_input(
+                sel.MAX_EXT_PSF, data["Max External PSF"], "Max External PSF"
+            )
 
         # H: StoreFront Door — always select it (even NONE) to enable downstream fields
         storefront_door = data.get("StoreFront Door")
         if storefront_door:
-            self._select_dropdown(sel.STOREFRONT_DOOR, storefront_door, "StoreFront Door")
+            self._select_dropdown(
+                sel.STOREFRONT_DOOR, storefront_door, "StoreFront Door"
+            )
 
             # I: Door Width (only when door is not NONE)
-            if str(storefront_door).strip().upper() != "NONE" and data.get("Door Width"):
-                self._fill_input(sel.STOREFRONT_DOOR_WIDTH, data["Door Width"], "Door Width")
+            if str(storefront_door).strip().upper() != "NONE" and data.get(
+                "Door Width"
+            ):
+                self._fill_input(
+                    sel.STOREFRONT_DOOR_WIDTH, data["Door Width"], "Door Width"
+                )
 
         # J: Width
         if data.get("Width"):
@@ -130,11 +145,19 @@ class FormFiller:
 
         # K: Panels
         if data.get("Panels"):
-            self._select_dropdown(sel.STOREFRONT_PANELS, str(int(data["Panels"])), "Panels")
+            self._select_dropdown(
+                sel.STOREFRONT_PANELS, str(int(data["Panels"])), "Panels"
+            )
 
         # L: Door Panels (only when door is not NONE)
-        if storefront_door and str(storefront_door).strip().upper() != "NONE" and data.get("Door Panels"):
-            self._select_dropdown(sel.STOREFRONT_DOOR_PANEL, str(int(data["Door Panels"])), "Door Panels")
+        if (
+            storefront_door
+            and str(storefront_door).strip().upper() != "NONE"
+            and data.get("Door Panels")
+        ):
+            self._select_dropdown(
+                sel.STOREFRONT_DOOR_PANEL, str(int(data["Door Panels"])), "Door Panels"
+            )
 
         # M: Height
         if data.get("Height"):
@@ -175,7 +198,11 @@ class FormFiller:
         elements = self.driver.find_elements(By.CSS_SELECTOR, css_selector)
         for el in reversed(elements):
             try:
-                if el.is_displayed() or el.get_attribute("style") is None or "display:none" not in (el.get_attribute("style") or ""):
+                if (
+                    el.is_displayed()
+                    or el.get_attribute("style") is None
+                    or "display:none" not in (el.get_attribute("style") or "")
+                ):
                     return not el.get_attribute("disabled")
             except Exception:
                 continue
