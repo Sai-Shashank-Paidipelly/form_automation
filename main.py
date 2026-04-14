@@ -1,24 +1,32 @@
 """
-ES Windows Order Form Automation
-Reads line items from an Excel file and fills them into the ES Windows order form.
+ES Windows Order Form Automation — Desktop UI
+Launches a Tkinter GUI for selecting an Excel file, entering the order number,
+and automating form entry via Selenium.
 
 Usage:
-    1. Start Chrome with remote debugging (see setup.sh)
-    2. Log into https://orders.eswindows.co manually
-    3. Run: python3 main.py
+    python3 main.py
 """
 
-import sys
+import os
+import threading
 import time
+import tkinter as tk
+from tkinter import filedialog, messagebox
+
 from openpyxl import load_workbook
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+
 from form_filler import FormFiller, FormFillerError
 import form_selectors as sel
 
+CHROME_PROFILE_DIR = os.path.join(os.path.expanduser("~"), ".esw-automation-profile")
+VALID_PRODUCT_TYPES = {"WINDOW", "DOOR", "STOREFRONT", "SHAPE", "MULLION"}
+
 
 def read_excel(file_path):
-    """Read line items from the 'Data Entry' sheet, skipping empty rows."""
+    """Read line items from the 'Data Entry' sheet, skipping non-data rows."""
     wb = load_workbook(file_path, data_only=True)
     ws = wb["Data Entry"]
 
@@ -26,132 +34,248 @@ def read_excel(file_path):
     rows = []
 
     for row in ws.iter_rows(min_row=2, values_only=True):
-        # Skip rows where Product Type is empty or "-SELECT-"
         product_type = row[0]
-        if not product_type or str(product_type).strip() in ("", "-SELECT-"):
+        if not product_type or str(product_type).strip().upper() not in VALID_PRODUCT_TYPES:
             continue
-        row_dict = dict(zip(headers, row))
-        rows.append(row_dict)
+        rows.append(dict(zip(headers, row)))
 
     return rows
 
 
-def connect_to_chrome():
-    """Attach to an existing Chrome session with remote debugging enabled."""
-    options = Options()
-    options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
-    try:
-        driver = webdriver.Chrome(options=options)
-        print("Connected to Chrome successfully.")
-        return driver
-    except Exception as e:
-        print(f"ERROR: Could not connect to Chrome: {e}")
-        print()
-        print("Make sure Chrome is running with remote debugging enabled:")
-        print('  /Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --remote-debugging-port=9222')
-        print()
-        print("Or run: bash setup.sh")
-        sys.exit(1)
+class App:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("ES Windows — Order Form Automation")
+        self.root.resizable(False, False)
+
+        self.driver = None
+        self.excel_path = None
+
+        self._build_ui()
+
+    # ─── UI Layout ──────────────────────────────────────────
+
+    def _build_ui(self):
+        pad = {"padx": 12, "pady": 6}
+
+        # ── Step 1: Browser ──────────────────────────────────
+        step1 = tk.LabelFrame(self.root, text="Step 1 — Browser", font=("Helvetica", 13, "bold"))
+        step1.pack(fill="x", **pad)
+
+        self.browser_status = tk.Label(step1, text="Not connected", fg="red", anchor="w")
+        self.browser_status.pack(side="left", padx=8, pady=8, fill="x", expand=True)
+
+        self.btn_open_browser = tk.Button(step1, text="Open Browser", width=14, command=self._open_browser)
+        self.btn_open_browser.pack(side="right", padx=8, pady=8)
+
+        # ── Step 2: Order details ────────────────────────────
+        step2 = tk.LabelFrame(self.root, text="Step 2 — Order Details", font=("Helvetica", 13, "bold"))
+        step2.pack(fill="x", **pad)
+
+        # Order number
+        row_order = tk.Frame(step2)
+        row_order.pack(fill="x", padx=8, pady=(8, 4))
+        tk.Label(row_order, text="Order Number:", width=14, anchor="w").pack(side="left")
+        self.entry_order = tk.Entry(row_order, width=30)
+        self.entry_order.pack(side="left", padx=(4, 0))
+
+        # Excel file
+        row_file = tk.Frame(step2)
+        row_file.pack(fill="x", padx=8, pady=(4, 8))
+        tk.Label(row_file, text="Excel File:", width=14, anchor="w").pack(side="left")
+        self.lbl_file = tk.Label(row_file, text="No file selected", fg="gray", anchor="w")
+        self.lbl_file.pack(side="left", padx=(4, 8), fill="x", expand=True)
+        tk.Button(row_file, text="Browse...", command=self._browse_file).pack(side="right")
+
+        # ── Step 3: Run ──────────────────────────────────────
+        step3 = tk.LabelFrame(self.root, text="Step 3 — Run", font=("Helvetica", 13, "bold"))
+        step3.pack(fill="x", **pad)
+
+        self.btn_start = tk.Button(step3, text="Start Automation", font=("Helvetica", 12, "bold"),
+                                   bg="#4CAF50", fg="white", height=2, command=self._start)
+        self.btn_start.pack(fill="x", padx=8, pady=8)
+
+        # ── Log area ─────────────────────────────────────────
+        log_frame = tk.LabelFrame(self.root, text="Progress", font=("Helvetica", 13, "bold"))
+        log_frame.pack(fill="both", expand=True, **pad)
+
+        self.log_text = tk.Text(log_frame, height=16, width=72, state="disabled",
+                                wrap="word", font=("Courier", 11))
+        scrollbar = tk.Scrollbar(log_frame, command=self.log_text.yview)
+        self.log_text.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right", fill="y")
+        self.log_text.pack(fill="both", expand=True, padx=4, pady=4)
+
+    # ─── Logging ────────────────────────────────────────────
+
+    def _log(self, message):
+        self.log_text.configure(state="normal")
+        self.log_text.insert("end", message + "\n")
+        self.log_text.see("end")
+        self.log_text.configure(state="disabled")
+
+    # ─── Step 1: Open Browser ───────────────────────────────
+
+    def _open_browser(self):
+        if self.driver:
+            messagebox.showinfo("Browser", "Browser is already open.")
+            return
+
+        self.btn_open_browser.configure(state="disabled", text="Opening...")
+        self._log("Launching Chrome...")
+
+        threading.Thread(target=self._launch_chrome, daemon=True).start()
+
+    def _launch_chrome(self):
+        try:
+            options = Options()
+            options.add_argument(f"--user-data-dir={CHROME_PROFILE_DIR}")
+            options.add_experimental_option("excludeSwitches", ["enable-automation"])
+
+            self.driver = webdriver.Chrome(options=options)
+
+            self.root.after(0, self._on_browser_ready)
+        except Exception as e:
+            self.root.after(0, lambda: self._on_browser_error(str(e)))
+
+    def _on_browser_ready(self):
+        self.browser_status.configure(text="Connected — log in, then continue here", fg="green")
+        self.btn_open_browser.configure(state="normal", text="Open Browser")
+        self._log("Chrome opened. Please navigate to orders.eswindows.co,")
+        self._log("log in, and then come back here to proceed.\n")
+
+    def _on_browser_error(self, error):
+        self.browser_status.configure(text="Failed to connect", fg="red")
+        self.btn_open_browser.configure(state="normal", text="Open Browser")
+        self._log(f"ERROR: Could not launch Chrome: {error}")
+        self._log("Make sure Google Chrome and ChromeDriver are installed.")
+
+    # ─── Step 2: Browse file ────────────────────────────────
+
+    def _browse_file(self):
+        path = filedialog.askopenfilename(
+            title="Select Excel File",
+            filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")]
+        )
+        if path:
+            self.excel_path = path
+            filename = os.path.basename(path)
+            self.lbl_file.configure(text=filename, fg="black")
+
+    # ─── Step 3: Start Automation ───────────────────────────
+
+    def _start(self):
+        # Validate inputs
+        if not self.driver:
+            messagebox.showwarning("Browser Required", "Please open the browser first (Step 1).")
+            return
+
+        order_number = self.entry_order.get().strip()
+        if not order_number:
+            messagebox.showwarning("Missing Order", "Please enter an order number.")
+            return
+
+        if not self.excel_path:
+            messagebox.showwarning("Missing File", "Please select an Excel file.")
+            return
+
+        # Read Excel
+        try:
+            rows = read_excel(self.excel_path)
+        except FileNotFoundError:
+            messagebox.showerror("File Error", f"File not found:\n{self.excel_path}")
+            return
+        except Exception as e:
+            messagebox.showerror("File Error", f"Could not read Excel file:\n{e}")
+            return
+
+        if not rows:
+            messagebox.showinfo("No Data", "No valid line items found in the 'Data Entry' sheet.")
+            return
+
+        self._log(f"Found {len(rows)} line items.")
+        for i, row in enumerate(rows[:5]):
+            self._log(f"  {i+1}. {row.get('Product Type', '?')} | "
+                       f"{row.get('Model', '?')} | "
+                       f"W:{row.get('Width', '?')} x H:{row.get('Height', '?')}")
+        if len(rows) > 5:
+            self._log(f"  ... and {len(rows) - 5} more")
+
+        confirm = messagebox.askyesno(
+            "Confirm",
+            f"Fill {len(rows)} line items into order #{order_number}?"
+        )
+        if not confirm:
+            self._log("Cancelled.\n")
+            return
+
+        # Disable UI during automation
+        self.btn_start.configure(state="disabled", text="Running...")
+        self.btn_open_browser.configure(state="disabled")
+
+        threading.Thread(target=self._run_automation, args=(order_number, rows), daemon=True).start()
+
+    def _run_automation(self, order_number, rows):
+        try:
+            url = sel.ORDER_URL.format(order_number=order_number)
+            self.root.after(0, lambda: self._log(f"\nNavigating to order #{order_number}..."))
+            self.driver.get(url)
+            time.sleep(4)
+
+            filler = FormFiller(self.driver)
+            success_count = 0
+
+            for i, row in enumerate(rows):
+                self.root.after(0, lambda i=i, row=row: self._log(
+                    f"\n{'─' * 45}\n"
+                    f"Line Item {i+1}/{len(rows)}\n"
+                    f"  Product: {row.get('Product Type', '?')}\n"
+                    f"  Model:   {row.get('Model', '?')}\n"
+                    f"  Size:    {row.get('Width', '?')} x {row.get('Height', '?')}"
+                ))
+
+                try:
+                    filler.add_line_item(row)
+                    success_count += 1
+                    self.root.after(0, lambda: self._log("  >> CREATED successfully"))
+                    time.sleep(3)
+                except FormFillerError as e:
+                    self.root.after(0, lambda e=e, i=i, sc=success_count: self._log(
+                        f"\n  >> {e}\n"
+                        f"  Process terminated at line item {i+1}.\n"
+                        f"  Successfully created {sc} out of {len(rows)} line items."
+                    ))
+                    self.root.after(0, self._on_automation_done)
+                    return
+                except Exception as e:
+                    self.root.after(0, lambda e=e, i=i, sc=success_count: self._log(
+                        f"\n  >> UNEXPECTED ERROR: {e}\n"
+                        f"  Process terminated at line item {i+1}.\n"
+                        f"  Successfully created {sc} out of {len(rows)} line items."
+                    ))
+                    self.root.after(0, self._on_automation_done)
+                    return
+
+            self.root.after(0, lambda sc=success_count: self._log(
+                f"\n{'=' * 45}\n"
+                f"DONE! Successfully created {sc}/{len(rows)} line items.\n"
+                f"{'=' * 45}"
+            ))
+
+        except Exception as e:
+            self.root.after(0, lambda e=e: self._log(f"\nERROR: {e}"))
+
+        self.root.after(0, self._on_automation_done)
+
+    def _on_automation_done(self):
+        self.btn_start.configure(state="normal", text="Start Automation")
+        self.btn_open_browser.configure(state="normal")
 
 
 def main():
-    print("=" * 60)
-    print("  ES Windows Order Form Automation")
-    print("=" * 60)
-    print()
-
-    # Get order number
-    order_number = input("Enter the order number: ").strip()
-    if not order_number:
-        print("Order number is required.")
-        return
-
-    # Get Excel file path
-    excel_path = input("Enter the Excel file path (drag & drop the file here): ").strip()
-    # Remove surrounding quotes if present (from drag & drop)
-    excel_path = excel_path.strip("'\"")
-
-    if not excel_path:
-        print("Excel file path is required.")
-        return
-
-    # Read Excel data
-    print(f"\nReading Excel file: {excel_path}")
-    try:
-        rows = read_excel(excel_path)
-    except FileNotFoundError:
-        print(f"ERROR: File not found: {excel_path}")
-        return
-    except Exception as e:
-        print(f"ERROR: Could not read Excel file: {e}")
-        return
-
-    print(f"Found {len(rows)} line items to process.")
-
-    if not rows:
-        print("No data found in the 'Data Entry' sheet. Exiting.")
-        return
-
-    # Preview the data
-    print("\nPreview of line items:")
-    for i, row in enumerate(rows[:5]):
-        print(f"  {i+1}. {row.get('Product Type', '?')} | {row.get('Model', '?')} | W:{row.get('Width', '?')} x H:{row.get('Height', '?')}")
-    if len(rows) > 5:
-        print(f"  ... and {len(rows) - 5} more")
-
-    print()
-    confirm = input(f"Proceed to fill {len(rows)} line items into order #{order_number}? (y/n): ").strip().lower()
-    if confirm != "y":
-        print("Cancelled.")
-        return
-
-    # Connect to Chrome
-    print("\nConnecting to Chrome...")
-    driver = connect_to_chrome()
-
-    # Navigate to the order page
-    url = sel.ORDER_URL.format(order_number=order_number)
-    print(f"Navigating to: {url}")
-    driver.get(url)
-    time.sleep(4)
-
-    # Initialize form filler
-    filler = FormFiller(driver)
-
-    # Process each line item
-    success_count = 0
-    error_count = 0
-
-    for i, row in enumerate(rows):
-        print(f"\n{'─' * 50}")
-        print(f"Line Item {i+1}/{len(rows)}")
-        print(f"  Product: {row.get('Product Type', '?')}")
-        print(f"  Model:   {row.get('Model', '?')}")
-        print(f"  Size:    {row.get('Width', '?')} x {row.get('Height', '?')}")
-
-        try:
-            filler.add_line_item(row)
-            success_count += 1
-            print(f"  >> CREATED successfully")
-        except FormFillerError as e:
-            print(f"\n  >> {e}")
-            print(f"\n  Process terminated at line item {i+1}.")
-            print(f"  Successfully created {success_count} out of {len(rows)} line items before termination.")
-            return
-        except Exception as e:
-            error_count += 1
-            print(f"  >> UNEXPECTED ERROR: {e}")
-            print(f"\n  Process terminated at line item {i+1}.")
-            print(f"  Successfully created {success_count} out of {len(rows)} line items before termination.")
-            return
-
-    # Summary
-    print(f"\n{'=' * 50}")
-    print(f"DONE!")
-    print(f"  Successfully created: {success_count}")
-    print(f"  Errors:              {error_count}")
-    print(f"  Total attempted:     {success_count + error_count}")
-    print(f"{'=' * 50}")
+    root = tk.Tk()
+    App(root)
+    root.mainloop()
 
 
 if __name__ == "__main__":
