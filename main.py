@@ -35,7 +35,10 @@ def read_excel(file_path):
 
     for row in ws.iter_rows(min_row=2, values_only=True):
         product_type = row[0]
-        if not product_type or str(product_type).strip().upper() not in VALID_PRODUCT_TYPES:
+        if (
+            not product_type
+            or str(product_type).strip().upper() not in VALID_PRODUCT_TYPES
+        ):
             continue
         rows.append(dict(zip(headers, row)))
 
@@ -59,48 +62,92 @@ class App:
         pad = {"padx": 12, "pady": 6}
 
         # ── Step 1: Browser ──────────────────────────────────
-        step1 = tk.LabelFrame(self.root, text="Step 1 — Browser", font=("Helvetica", 13, "bold"))
+        step1 = tk.LabelFrame(
+            self.root, text="Step 1 — Browser", font=("Helvetica", 13, "bold")
+        )
         step1.pack(fill="x", **pad)
 
-        self.browser_status = tk.Label(step1, text="Not connected", fg="red", anchor="w")
+        self.browser_status = tk.Label(
+            step1, text="Not connected", fg="red", anchor="w"
+        )
         self.browser_status.pack(side="left", padx=8, pady=8, fill="x", expand=True)
 
-        self.btn_open_browser = tk.Button(step1, text="Open Browser", width=14, command=self._open_browser)
+        self.btn_open_browser = tk.Button(
+            step1, text="Open Browser", width=14, command=self._open_browser
+        )
         self.btn_open_browser.pack(side="right", padx=8, pady=8)
 
         # ── Step 2: Order details ────────────────────────────
-        step2 = tk.LabelFrame(self.root, text="Step 2 — Order Details", font=("Helvetica", 13, "bold"))
+        step2 = tk.LabelFrame(
+            self.root, text="Step 2 — Order Details", font=("Helvetica", 13, "bold")
+        )
         step2.pack(fill="x", **pad)
 
         # Order number
         row_order = tk.Frame(step2)
         row_order.pack(fill="x", padx=8, pady=(8, 4))
-        tk.Label(row_order, text="Order Number:", width=14, anchor="w").pack(side="left")
+        tk.Label(row_order, text="Order Number:", width=14, anchor="w").pack(
+            side="left"
+        )
         self.entry_order = tk.Entry(row_order, width=30)
         self.entry_order.pack(side="left", padx=(4, 0))
 
         # Excel file
         row_file = tk.Frame(step2)
-        row_file.pack(fill="x", padx=8, pady=(4, 8))
+        row_file.pack(fill="x", padx=8, pady=(4, 4))
         tk.Label(row_file, text="Excel File:", width=14, anchor="w").pack(side="left")
-        self.lbl_file = tk.Label(row_file, text="No file selected", fg="gray", anchor="w")
+        self.lbl_file = tk.Label(
+            row_file, text="No file selected", fg="gray", anchor="w"
+        )
         self.lbl_file.pack(side="left", padx=(4, 8), fill="x", expand=True)
-        tk.Button(row_file, text="Browse...", command=self._browse_file).pack(side="right")
+        tk.Button(row_file, text="Browse...", command=self._browse_file).pack(
+            side="right"
+        )
+
+        # Start from row
+        row_start = tk.Frame(step2)
+        row_start.pack(fill="x", padx=8, pady=(4, 8))
+        tk.Label(row_start, text="Start from row:", width=14, anchor="w").pack(
+            side="left"
+        )
+        self.entry_start_row = tk.Entry(row_start, width=8)
+        self.entry_start_row.insert(0, "1")
+        self.entry_start_row.pack(side="left", padx=(4, 0))
+        tk.Label(
+            row_start, text="(use this to resume after a failure)", fg="gray"
+        ).pack(side="left", padx=(8, 0))
 
         # ── Step 3: Run ──────────────────────────────────────
-        step3 = tk.LabelFrame(self.root, text="Step 3 — Run", font=("Helvetica", 13, "bold"))
+        step3 = tk.LabelFrame(
+            self.root, text="Step 3 — Run", font=("Helvetica", 13, "bold")
+        )
         step3.pack(fill="x", **pad)
 
-        self.btn_start = tk.Button(step3, text="Start Automation", font=("Helvetica", 12, "bold"),
-                                   bg="#4CAF50", fg="white", height=2, command=self._start)
+        self.btn_start = tk.Button(
+            step3,
+            text="Start Automation",
+            font=("Helvetica", 12, "bold"),
+            bg="#4CAF50",
+            fg="white",
+            height=2,
+            command=self._start,
+        )
         self.btn_start.pack(fill="x", padx=8, pady=8)
 
         # ── Log area ─────────────────────────────────────────
-        log_frame = tk.LabelFrame(self.root, text="Progress", font=("Helvetica", 13, "bold"))
+        log_frame = tk.LabelFrame(
+            self.root, text="Progress", font=("Helvetica", 13, "bold")
+        )
         log_frame.pack(fill="both", expand=True, **pad)
 
-        self.log_text = tk.Text(log_frame, height=16, width=72, state="disabled",
-                                wrap="word", font=("Courier", 11))
+        self.log_text = tk.Text(
+            log_frame,
+            height=16,
+            width=72,
+            state="disabled",
+            wrap="word",
+            font=("Courier", 11),
+        )
         scrollbar = tk.Scrollbar(log_frame, command=self.log_text.yview)
         self.log_text.configure(yscrollcommand=scrollbar.set)
         scrollbar.pack(side="right", fill="y")
@@ -139,7 +186,9 @@ class App:
             self.root.after(0, lambda: self._on_browser_error(str(e)))
 
     def _on_browser_ready(self):
-        self.browser_status.configure(text="Connected — log in, then continue here", fg="green")
+        self.browser_status.configure(
+            text="Connected — log in, then continue here", fg="green"
+        )
         self.btn_open_browser.configure(state="normal", text="Open Browser")
         self._log("Chrome opened. Please navigate to orders.eswindows.co,")
         self._log("log in, and then come back here to proceed.\n")
@@ -155,7 +204,7 @@ class App:
     def _browse_file(self):
         path = filedialog.askopenfilename(
             title="Select Excel File",
-            filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")]
+            filetypes=[("Excel files", "*.xlsx *.xls"), ("All files", "*.*")],
         )
         if path:
             self.excel_path = path
@@ -167,7 +216,9 @@ class App:
     def _start(self):
         # Validate inputs
         if not self.driver:
-            messagebox.showwarning("Browser Required", "Please open the browser first (Step 1).")
+            messagebox.showwarning(
+                "Browser Required", "Please open the browser first (Step 1)."
+            )
             return
 
         order_number = self.entry_order.get().strip()
@@ -179,7 +230,23 @@ class App:
             messagebox.showwarning("Missing File", "Please select an Excel file.")
             return
 
-        # Read Excel
+        # Validate "Start from row"
+        start_row_raw = self.entry_start_row.get().strip()
+        try:
+            start_row = int(start_row_raw)
+        except ValueError:
+            messagebox.showwarning(
+                "Invalid Start Row",
+                f"'Start from row' must be a number. Got: '{start_row_raw}'",
+            )
+            return
+        if start_row <= 0:
+            messagebox.showwarning(
+                "Invalid Start Row", "'Start from row' must be 1 or greater."
+            )
+            return
+
+        # Read Excel (re-read from disk so edits are picked up)
         try:
             rows = read_excel(self.excel_path)
         except FileNotFoundError:
@@ -190,21 +257,38 @@ class App:
             return
 
         if not rows:
-            messagebox.showinfo("No Data", "No valid line items found in the 'Data Entry' sheet.")
+            messagebox.showinfo(
+                "No Data", "No valid line items found in the 'Data Entry' sheet."
+            )
+            return
+
+        if start_row > len(rows):
+            messagebox.showwarning(
+                "Invalid Start Row",
+                f"'Start from row' ({start_row}) is greater than the total line items ({len(rows)}).",
+            )
             return
 
         self._log(f"Found {len(rows)} line items.")
+        if start_row > 1:
+            self._log(
+                f"Resuming from row {start_row} ({len(rows) - start_row + 1} to process)."
+            )
         for i, row in enumerate(rows[:5]):
-            self._log(f"  {i+1}. {row.get('Product Type', '?')} | "
-                       f"{row.get('Model', '?')} | "
-                       f"W:{row.get('Width', '?')} x H:{row.get('Height', '?')}")
+            self._log(
+                f"  {i+1}. {row.get('Product Type', '?')} | "
+                f"{row.get('Model', '?')} | "
+                f"W:{row.get('Width', '?')} x H:{row.get('Height', '?')}"
+            )
         if len(rows) > 5:
             self._log(f"  ... and {len(rows) - 5} more")
 
-        confirm = messagebox.askyesno(
-            "Confirm",
-            f"Fill {len(rows)} line items into order #{order_number}?"
+        prompt = (
+            f"Fill rows {start_row}–{len(rows)} into order #{order_number}?"
+            if start_row > 1
+            else f"Fill {len(rows)} line items into order #{order_number}?"
         )
+        confirm = messagebox.askyesno("Confirm", prompt)
         if not confirm:
             self._log("Cancelled.\n")
             return
@@ -213,26 +297,41 @@ class App:
         self.btn_start.configure(state="disabled", text="Running...")
         self.btn_open_browser.configure(state="disabled")
 
-        threading.Thread(target=self._run_automation, args=(order_number, rows), daemon=True).start()
+        threading.Thread(
+            target=self._run_automation,
+            args=(order_number, rows, start_row),
+            daemon=True,
+        ).start()
 
-    def _run_automation(self, order_number, rows):
+    def _run_automation(self, order_number, rows, start_row=1):
         try:
             url = sel.ORDER_URL.format(order_number=order_number)
-            self.root.after(0, lambda: self._log(f"\nNavigating to order #{order_number}..."))
+            self.root.after(
+                0, lambda: self._log(f"\nNavigating to order #{order_number}...")
+            )
             self.driver.get(url)
             time.sleep(4)
 
             filler = FormFiller(self.driver)
             success_count = 0
+            total = len(rows)
 
-            for i, row in enumerate(rows):
-                self.root.after(0, lambda i=i, row=row: self._log(
-                    f"\n{'─' * 45}\n"
-                    f"Line Item {i+1}/{len(rows)}\n"
-                    f"  Product: {row.get('Product Type', '?')}\n"
-                    f"  Model:   {row.get('Model', '?')}\n"
-                    f"  Size:    {row.get('Width', '?')} x {row.get('Height', '?')}"
-                ))
+            # Slice rows from start_row (1-indexed)
+            rows_to_process = rows[start_row - 1 :]
+
+            for idx, row in enumerate(rows_to_process):
+                row_num = start_row + idx  # original row number (1-indexed)
+
+                self.root.after(
+                    0,
+                    lambda rn=row_num, row=row: self._log(
+                        f"\n{'─' * 45}\n"
+                        f"Line Item {rn}/{total}\n"
+                        f"  Product: {row.get('Product Type', '?')}\n"
+                        f"  Model:   {row.get('Model', '?')}\n"
+                        f"  Size:    {row.get('Width', '?')} x {row.get('Height', '?')}"
+                    ),
+                )
 
                 try:
                     filler.add_line_item(row)
@@ -240,27 +339,38 @@ class App:
                     self.root.after(0, lambda: self._log("  >> CREATED successfully"))
                     time.sleep(3)
                 except FormFillerError as e:
-                    self.root.after(0, lambda e=e, i=i, sc=success_count: self._log(
-                        f"\n  >> {e}\n"
-                        f"  Process terminated at line item {i+1}.\n"
-                        f"  Successfully created {sc} out of {len(rows)} line items."
-                    ))
+                    self.root.after(
+                        0,
+                        lambda e=e, rn=row_num, sc=success_count: self._log(
+                            f"\n  >> {e}\n"
+                            f"  Process terminated at line item {rn}.\n"
+                            f"  Successfully created {sc} line items in this run.\n"
+                            f"  To resume: fix the Excel, set 'Start from row' to {rn}, and run again."
+                        ),
+                    )
                     self.root.after(0, self._on_automation_done)
                     return
                 except Exception as e:
-                    self.root.after(0, lambda e=e, i=i, sc=success_count: self._log(
-                        f"\n  >> UNEXPECTED ERROR: {e}\n"
-                        f"  Process terminated at line item {i+1}.\n"
-                        f"  Successfully created {sc} out of {len(rows)} line items."
-                    ))
+                    self.root.after(
+                        0,
+                        lambda e=e, rn=row_num, sc=success_count: self._log(
+                            f"\n  >> UNEXPECTED ERROR: {e}\n"
+                            f"  Process terminated at line item {rn}.\n"
+                            f"  Successfully created {sc} line items in this run.\n"
+                            f"  To resume: fix the issue, set 'Start from row' to {rn}, and run again."
+                        ),
+                    )
                     self.root.after(0, self._on_automation_done)
                     return
 
-            self.root.after(0, lambda sc=success_count: self._log(
-                f"\n{'=' * 45}\n"
-                f"DONE! Successfully created {sc}/{len(rows)} line items.\n"
-                f"{'=' * 45}"
-            ))
+            self.root.after(
+                0,
+                lambda sc=success_count: self._log(
+                    f"\n{'=' * 45}\n"
+                    f"DONE! Successfully created {sc} line items in this run.\n"
+                    f"{'=' * 45}"
+                ),
+            )
 
         except Exception as e:
             self.root.after(0, lambda e=e: self._log(f"\nERROR: {e}"))
