@@ -40,7 +40,12 @@ def read_excel(file_path):
             or str(product_type).strip().upper() not in VALID_PRODUCT_TYPES
         ):
             continue
-        rows.append(dict(zip(headers, row)))
+        cleaned = {}
+        for key, val in zip(headers, row):
+            if isinstance(val, str) and not val.strip().replace("\xa0", ""):
+                val = None
+            cleaned[key] = val
+        rows.append(cleaned)
 
     return rows
 
