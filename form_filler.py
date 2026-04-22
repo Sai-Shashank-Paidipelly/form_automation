@@ -124,6 +124,13 @@ class FormFiller:
                 sel.MAX_EXT_PSF, data["Max External PSF"], "Max External PSF"
             )
 
+        # G2: Max Internal PSF (optional — only if enabled and has data)
+        if data.get("Max Internal PSF"):
+            if self._is_field_enabled(sel.MAX_INT_PSF):
+                self._fill_input(
+                    sel.MAX_INT_PSF, data["Max Internal PSF"], "Max Internal PSF"
+                )
+
         # H: StoreFront Door — always select it (even NONE) to enable downstream fields
         storefront_door = data.get("StoreFront Door")
         if storefront_door:

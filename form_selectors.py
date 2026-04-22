@@ -34,6 +34,7 @@ GLASS_COLOR = "select[data-line-item-wizard-glass_color]"
 
 # ─── Text Input Fields ───────────────────────────────────────
 MAX_EXT_PSF = "input[data-line-item-wizard-max_ext_psf]"
+MAX_INT_PSF = "input[data-line-item-wizard-max_int_psf]"
 STOREFRONT_DOOR_WIDTH = "input[data-line-item-wizard-storefront_door_target_width]"
 WIDTH = "input[data-line-item-wizard-target_width]"
 HEIGHT = "input[data-line-item-wizard-target_height]"
