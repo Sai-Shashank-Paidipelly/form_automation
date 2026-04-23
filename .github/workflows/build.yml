@@ -1,0 +1,62 @@
+name: Build Desktop App
+
+on:
+  push:
+    branches: [main, feature/*]
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build .exe
+        run: |
+          pyinstaller --onefile --windowed --name "ESWindows-FormAutomation" --icon NONE main.py
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ESWindows-FormAutomation-Windows
+          path: dist/ESWindows-FormAutomation.exe
+
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build .app
+        run: |
+          pyinstaller --onefile --windowed --name "ESWindows-FormAutomation" --icon NONE main.py
+
+      - name: Zip the .app for download
+        run: |
+          cd dist
+          zip -r ESWindows-FormAutomation-Mac.zip ESWindows-FormAutomation.app || zip -r ESWindows-FormAutomation-Mac.zip ESWindows-FormAutomation
+
+      - name: Upload Mac build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ESWindows-FormAutomation-Mac
+          path: dist/ESWindows-FormAutomation-Mac.zip
