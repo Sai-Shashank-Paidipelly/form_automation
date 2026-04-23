@@ -48,12 +48,12 @@ jobs:
 
       - name: Build .app
         run: |
-          pyinstaller --onefile --windowed --name "ESWindows-FormAutomation" --icon NONE main.py
+          pyinstaller --onedir --windowed --name "ESWindows-FormAutomation" main.py
 
       - name: Zip the .app for download
         run: |
           cd dist
-          zip -r ESWindows-FormAutomation-Mac.zip ESWindows-FormAutomation.app || zip -r ESWindows-FormAutomation-Mac.zip ESWindows-FormAutomation
+          zip -r ESWindows-FormAutomation-Mac.zip ESWindows-FormAutomation.app
 
       - name: Upload Mac build
         uses: actions/upload-artifact@v4
