@@ -11,7 +11,7 @@ import os
 import threading
 import time
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 
 from openpyxl import load_workbook
 from selenium import webdriver
@@ -59,6 +59,7 @@ class App:
 
         self.driver = None
         self.excel_path = None
+        self._stop_requested = False
 
         self._build_ui()
 
@@ -138,7 +139,25 @@ class App:
             height=2,
             command=self._start,
         )
-        self.btn_start.pack(fill="x", padx=8, pady=8)
+        self.btn_start.pack(fill="x", padx=8, pady=(8, 4))
+
+        # Stop button (hidden until automation starts)
+        self.controls_frame = tk.Frame(step3)
+        self.controls_frame.pack(fill="x", padx=8, pady=(0, 8))
+
+        style = ttk.Style()
+        style.configure(
+            "Stop.TButton",
+            font=("Helvetica", 11, "bold"),
+            foreground="#F44336",
+        )
+
+        self.btn_stop = ttk.Button(
+            self.controls_frame,
+            text="⏹  Stop",
+            style="Stop.TButton",
+            command=self._stop,
+        )
 
         # ── Log area ─────────────────────────────────────────
         log_frame = tk.LabelFrame(
@@ -205,6 +224,20 @@ class App:
         self.btn_open_browser.configure(state="normal", text="Open Browser")
         self._log(f"ERROR: Could not launch Chrome: {error}")
         self._log("Make sure Google Chrome and ChromeDriver are installed.")
+
+    # ─── Stop Control ───────────────────────────────────────
+
+    def _show_controls(self):
+        """Show stop button during automation."""
+        self.btn_stop.pack(fill="x")
+
+    def _hide_controls(self):
+        """Hide stop button when automation is not running."""
+        self.btn_stop.pack_forget()
+
+    def _stop(self):
+        self._stop_requested = True
+        self._log("  >> STOPPING after current line item...")
 
     # ─── Step 2: Browse file ────────────────────────────────
 
@@ -300,9 +333,11 @@ class App:
             self._log("Cancelled.\n")
             return
 
-        # Disable UI during automation
+        # Disable UI during automation and show stop button
+        self._stop_requested = False
         self.btn_start.configure(state="disabled", text="Running...")
         self.btn_open_browser.configure(state="disabled")
+        self._show_controls()
 
         threading.Thread(
             target=self._run_automation,
@@ -327,6 +362,20 @@ class App:
             rows_to_process = rows[start_row - 1 :]
 
             for idx, row in enumerate(rows_to_process):
+                # ── Check for stop ──
+                if self._stop_requested:
+                    row_num = start_row + idx
+                    self.root.after(
+                        0,
+                        lambda rn=row_num, sc=success_count: self._log(
+                            f"\n  >> STOPPED by user at line item {rn}.\n"
+                            f"  Successfully created {sc} line items in this run.\n"
+                            f"  To resume: set 'Start from row' to {rn} and run again."
+                        ),
+                    )
+                    self.root.after(0, self._on_automation_done)
+                    return
+
                 row_num = start_row + idx  # original row number (1-indexed)
 
                 self.root.after(
@@ -387,6 +436,7 @@ class App:
     def _on_automation_done(self):
         self.btn_start.configure(state="normal", text="Start Automation")
         self.btn_open_browser.configure(state="normal")
+        self._hide_controls()
 
 
 def main():
