@@ -23,7 +23,7 @@ jobs:
 
       - name: Build .exe
         run: |
-          pyinstaller --onefile --windowed --name "ESWindows-FormAutomation" --icon NONE main.py
+          pyinstaller --onefile --windowed --name "ESWindows-FormAutomation" --icon NONE --hidden-import=selenium.webdriver.chrome.webdriver --hidden-import=selenium.webdriver.chrome.service --hidden-import=selenium.webdriver.common.by --hidden-import=selenium.webdriver.support.ui --hidden-import=selenium.webdriver.support.expected_conditions --hidden-import=webdriver_manager.chrome main.py
 
       - name: Upload Windows build
         uses: actions/upload-artifact@v4
@@ -48,7 +48,7 @@ jobs:
 
       - name: Build .app
         run: |
-          pyinstaller --onedir --windowed --name "ESWindows-FormAutomation" main.py
+          pyinstaller --onedir --windowed --name "ESWindows-FormAutomation" --hidden-import=selenium.webdriver.chrome.webdriver --hidden-import=selenium.webdriver.chrome.service --hidden-import=selenium.webdriver.common.by --hidden-import=selenium.webdriver.support.ui --hidden-import=selenium.webdriver.support.expected_conditions --hidden-import=webdriver_manager.chrome main.py
 
       - name: Zip the .app for download
         run: |
