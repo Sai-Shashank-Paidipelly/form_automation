@@ -16,8 +16,6 @@ from tkinter import filedialog, messagebox, ttk
 from openpyxl import load_workbook
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 
 from form_filler import FormFiller, FormFillerError
 import form_selectors as sel
@@ -204,8 +202,7 @@ class App:
             options.add_argument(f"--user-data-dir={CHROME_PROFILE_DIR}")
             options.add_experimental_option("excludeSwitches", ["enable-automation"])
 
-            service = Service(ChromeDriverManager().install())
-            self.driver = webdriver.Chrome(service=service, options=options)
+            self.driver = webdriver.Chrome(options=options)
 
             self.root.after(0, self._on_browser_ready)
         except Exception as e:
