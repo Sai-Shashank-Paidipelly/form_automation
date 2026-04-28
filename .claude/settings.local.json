@@ -3,7 +3,8 @@
     "allow": [
       "Bash(gh run *)",
       "Bash(sips -s format jpeg /Users/shashankpaidipelly/Downloads/IMG_1432.HEIC --out /tmp/IMG_1432.jpg --resampleWidth 1200)",
-      "Bash(sips -s format jpeg /Users/shashankpaidipelly/Downloads/IMG_1434.HEIC --out /tmp/IMG_1434.jpg --resampleWidth 1200)"
+      "Bash(sips -s format jpeg /Users/shashankpaidipelly/Downloads/IMG_1434.HEIC --out /tmp/IMG_1434.jpg --resampleWidth 1200)",
+      "Bash(python3 -c ' *)"
     ]
   }
 }
