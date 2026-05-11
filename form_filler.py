@@ -170,21 +170,21 @@ class FormFiller:
         if data.get("Height"):
             self._fill_input(sel.HEIGHT, data["Height"], "Height")
 
-        # N: Aluminum Finish — skip (inherited from order header)
-
         # O: Glass Type
         if data.get("Glass Type"):
             self._select_dropdown(sel.GLASS_TYPE, data["Glass Type"], "Glass Type")
 
-        # P: Glass Color — skip (inherited from order header)
-
-        # Q: LOW-E checkbox
+        # P: LOW-E checkbox
         if str(data.get("LOW-E", "")).strip().lower() == "yes":
             self._set_checkbox(sel.LOW_E, True, "LOW-E")
 
-        # R: Privacy checkbox
+        # Q: Privacy checkbox
         if str(data.get("Privacy", "")).strip().lower() == "yes":
             self._set_checkbox(sel.PRIVACY, True, "Privacy")
+
+        # R: Line Item Name (optional)
+        if data.get("Line Item Name"):
+            self._fill_input(sel.LINE_ITEM_NAME, data["Line Item Name"], "Line Item Name")
 
     # ─── Wait for field to be enabled ────────────────────────
 
