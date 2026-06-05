@@ -10,6 +10,7 @@ Usage:
 import os
 import threading
 import time
+import traceback
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
@@ -210,7 +211,8 @@ class App:
 
             self.root.after(0, self._on_browser_ready)
         except Exception as e:
-            self.root.after(0, lambda: self._on_browser_error(str(e)))
+            err_msg = str(e)
+            self.root.after(0, lambda: self._on_browser_error(err_msg))
 
     def _on_browser_ready(self):
         self.browser_status.configure(
@@ -396,10 +398,11 @@ class App:
                     self.root.after(0, lambda: self._log("  >> CREATED successfully"))
                     time.sleep(3)
                 except FormFillerError as e:
+                    err_msg = str(e)
                     self.root.after(
                         0,
-                        lambda e=e, rn=row_num, sc=success_count: self._log(
-                            f"\n  >> {e}\n"
+                        lambda msg=err_msg, rn=row_num, sc=success_count: self._log(
+                            f"\n  >> {msg}\n"
                             f"  Process terminated at line item {rn}.\n"
                             f"  Successfully created {sc} line items in this run.\n"
                             f"  To resume: fix the Excel, set 'Start from row' to {rn}, and run again."
@@ -408,10 +411,11 @@ class App:
                     self.root.after(0, self._on_automation_done)
                     return
                 except Exception as e:
+                    err_msg = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
                     self.root.after(
                         0,
-                        lambda e=e, rn=row_num, sc=success_count: self._log(
-                            f"\n  >> UNEXPECTED ERROR: {e}\n"
+                        lambda msg=err_msg, rn=row_num, sc=success_count: self._log(
+                            f"\n  >> UNEXPECTED ERROR: {msg}\n"
                             f"  Process terminated at line item {rn}.\n"
                             f"  Successfully created {sc} line items in this run.\n"
                             f"  To resume: fix the issue, set 'Start from row' to {rn}, and run again."

@@ -32,27 +32,43 @@ class FormFiller:
 
     def add_line_item(self, row_data):
         """Click Add Line Item -> fill form -> click Create."""
-        self._click_add_line_item()
-        self._wait_for_modal()
+        self._click_add_and_wait_for_modal()
         self._fill_form(row_data)
         self._click_create()
         self._wait_for_modal_close()
 
     # ─── Flow Steps ──────────────────────────────────────────
 
-    def _click_add_line_item(self):
-        btn = self._find_visible(sel.ADD_LINE_ITEM_BTN)
-        self.driver.execute_script("arguments[0].scrollIntoView(true);", btn)
-        time.sleep(0.5)
-        btn.click()
-        time.sleep(2)
+    def _click_add_and_wait_for_modal(self, max_retries=3):
+        """Click Add Line Item and wait for modal. Retry if modal doesn't open."""
+        for attempt in range(1, max_retries + 1):
+            btn = self._find_visible(sel.ADD_LINE_ITEM_BTN)
+            self.driver.execute_script(
+                "arguments[0].scrollIntoView({block: 'center'});", btn
+            )
+            time.sleep(0.5)
 
-    def _wait_for_modal(self):
-        """Wait for the modal to become visible."""
-        WebDriverWait(self.driver, self.wait_timeout).until(
-            lambda d: self._get_active_modal() is not None
+            # Native click works on this site; JS click gets swallowed
+            try:
+                btn.click()
+            except Exception:
+                self.driver.execute_script("arguments[0].click();", btn)
+            time.sleep(2)
+
+            try:
+                WebDriverWait(self.driver, 8).until(
+                    lambda d: self._get_active_modal() is not None
+                )
+                time.sleep(1)
+                return
+            except TimeoutException:
+                print(f"    Modal did not open (attempt {attempt}/{max_retries}), retrying...")
+                time.sleep(1)
+
+        raise FormFillerError(
+            "TERMINATED: 'Add Line Item' button was clicked but the modal never opened "
+            f"after {max_retries} attempts. The page may not be fully loaded."
         )
-        time.sleep(1)
 
     def _click_create(self):
         btn = self._find_visible(sel.SUBMIT_BTN)
